@@ -1,4 +1,4 @@
-![fancy_gopher_tiny](https://user-images.githubusercontent.com/20154956/67162203-297e5300-f362-11e9-899b-4644d3084a02.png)
+<img src="https://user-images.githubusercontent.com/20154956/67162203-297e5300-f362-11e9-899b-4644d3084a02.png" width="320" height="260">
 
 **fancy** let's you fanout `rsyslog` to [Loki](https://github.com/grafana/loki) and is meant to be executed by `rsyslog` under
 [omprog](http://www.rsyslog.com/doc/master/configuration/modules/omprog.html)
