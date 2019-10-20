@@ -11,10 +11,13 @@
 3. Move **fancy** to /opt. mv fancy /opt/
 4. Edit and paste following under /etc/rsyslog.conf. vim /etc/rsyslog.conf
 
+```bash
     module(load="omprog")
 
     $template fancy,"%syslogseverity% %hostname% %syslogfacility-text% %programname%%msg%\n"
 
     action(type="omprog" name="fancy" template="fancy" output="/var/log/fancy.log" binary="/opt/fancy -lokiurl http://lokihost:3100")
+```
 
-
+5. Restart `rsyslog`. systemctl restart rsyslog
+6. Check logs under /var/log/syslog and /var/log/fancy.log
