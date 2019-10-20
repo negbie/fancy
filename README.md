@@ -18,6 +18,6 @@
 
     action(type="omprog" name="fancy" template="fancy" output="/var/log/fancy.log" binary="/opt/fancy -lokiurl http://lokihost:3100")
 ```
-
-5. Restart `rsyslog`. systemctl restart rsyslog
-6. Check logs under /var/log/syslog and /var/log/fancy.log
+5. Make sure you have set the right Loki URL
+6. Restart `rsyslog`. systemctl restart rsyslog
+7. Check logs under /var/log/syslog and /var/log/fancy.log
