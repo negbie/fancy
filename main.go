@@ -21,10 +21,11 @@ func main() {
 func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 	fs := flag.NewFlagSet("fancy", flag.ContinueOnError)
 	var (
-		lokiURL   = fs.String("lokiurl", "http://localhost:3100", "Loki Server URL")
-		chanSize  = fs.Int("chansize", 10000, "Loki buffered channel capacity")
-		batchSize = fs.Int("batchsize", 200*1024, "Loki will batch some bytes before sending them")
-		batchWait = fs.Int("batchwait", 4, "Loki will send logs after some seconds")
+		lokiURL    = fs.String("lokiurl", "http://localhost:3100", "Loki Server URL")
+		chanSize   = fs.Int("chansize", 20000, "Loki buffered channel capacity")
+		batchSize  = fs.Int("batchsize", 600*1024, "Loki will batch some bytes before sending them")
+		batchWait  = fs.Int("batchwait", 4, "Loki will send logs after some seconds")
+		metricOnly = fs.Bool("metriconly", false, "Only metrics for prometheus will be exposed")
 	)
 
 	err := ff.Parse(fs, args, ff.WithEnvVarPrefix("FANCY"))
@@ -48,6 +49,10 @@ func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 		ll, err := scanLine(s.Bytes())
 		if err != nil {
 			return 1
+		}
+
+		if *metricOnly {
+			continue
 		}
 
 		select {
