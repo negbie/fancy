@@ -104,7 +104,7 @@ func (l *Loki) Run() {
 
 			if batchSize+len(l.entry.Line) > l.BatchSize {
 				if err := l.sendBatch(batch); err != nil {
-					fmt.Fprintf(os.Stderr, "ERROR: send size batch: %v\n", err)
+					fmt.Fprintf(os.Stderr, "%v ERROR: send size batch: %v\n", lastPktTime, err)
 				}
 				batchSize = 0
 				batch = map[model.Fingerprint]*logproto.Stream{}
@@ -125,7 +125,7 @@ func (l *Loki) Run() {
 		case <-maxWait.C:
 			if len(batch) > 0 {
 				if err := l.sendBatch(batch); err != nil {
-					fmt.Fprintf(os.Stderr, "ERROR: send time batch: %v\n", err)
+					fmt.Fprintf(os.Stderr, "%v ERROR: send time batch: %v\n", lastPktTime, err)
 				}
 				batchSize = 0
 				batch = map[model.Fingerprint]*logproto.Stream{}
