@@ -71,7 +71,7 @@ func (l *Loki) Run() {
 
 	defer func() {
 		if err := l.sendBatch(batch); err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: loki flush: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%v ERROR: loki flush: %v\n", time.Now(), err)
 		}
 	}()
 

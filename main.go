@@ -14,7 +14,7 @@ import (
 const version = "1.0"
 
 func main() {
-	fmt.Fprintf(os.Stderr, "%v fancy version %s is starting\n", time.Now(), version)
+	fmt.Fprintf(os.Stderr, "%v start fancy version %s\n", time.Now(), version)
 	os.Exit(parseAndRun(os.Stderr, os.Stdin, os.Args[1:]))
 }
 
@@ -22,7 +22,7 @@ func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 	fs := flag.NewFlagSet("fancy", flag.ContinueOnError)
 	var (
 		lokiURL   = fs.String("lokiurl", "http://localhost:3100", "Loki Server URL")
-		chanSize  = fs.Int("chansize", 100, "Loki buffered channel capacity")
+		chanSize  = fs.Int("chansize", 10000, "Loki buffered channel capacity")
 		batchSize = fs.Int("batchsize", 200*1024, "Loki will batch some bytes before sending them")
 		batchWait = fs.Int("batchwait", 4, "Loki will send logs after some seconds")
 	)
