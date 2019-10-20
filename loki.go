@@ -22,7 +22,6 @@ import (
 const (
 	contentType  = "application/x-protobuf"
 	postPath     = "/api/prom/push"
-	getPath      = "/api/prom/label"
 	jobName      = model.LabelValue("fancy")
 	maxErrMsgLen = 1024
 )
@@ -37,16 +36,20 @@ type Loki struct {
 	LokiURL   string
 	BatchWait time.Duration
 	BatchSize int
+	lineChan  chan *LogLine
 }
 
-func (l *Loki) setup() error {
-	//l.BatchSize = config.Setting.LokiBulk * 1024
-	//l.BatchWait = time.Duration(config.Setting.LokiTimer) * time.Second
-	//l.URL = config.Setting.LokiURL
+func NewLoki(lineChan chan *LogLine, URL string, batchSize, batchWait int) (*Loki, error) {
+	l := &Loki{
+		LokiURL:   URL,
+		BatchSize: batchSize,
+		BatchWait: time.Duration(batchWait) * time.Second,
+		lineChan:  lineChan,
+	}
 
 	u, err := url.Parse(l.LokiURL)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !strings.Contains(u.Path, postPath) {
 		u.Path = postPath
@@ -54,30 +57,27 @@ func (l *Loki) setup() error {
 		u.RawQuery = q.Encode()
 		l.LokiURL = u.String()
 	}
-	u.Path = getPath
-	q := u.Query()
-	u.RawQuery = q.Encode()
-	return nil
+	return l, nil
 }
 
-func (l *Loki) start(logLine chan *LogLine) {
+func (l *Loki) Run() {
 	var (
 		curPktTime  time.Time
 		lastPktTime time.Time
+		maxWait     = time.NewTimer(l.BatchWait)
 		batch       = map[model.Fingerprint]*logproto.Stream{}
 		batchSize   = 0
-		maxWait     = time.NewTimer(l.BatchWait)
 	)
 
 	defer func() {
 		if err := l.sendBatch(batch); err != nil {
-			fmt.Fprintf(os.Stderr, "loki flush: %v", err)
+			fmt.Fprintf(os.Stderr, "ERROR: loki flush: %v\n", err)
 		}
 	}()
 
 	for {
 		select {
-		case ll, ok := <-logLine:
+		case ll, ok := <-l.lineChan:
 			if !ok {
 				return
 			}
@@ -104,7 +104,7 @@ func (l *Loki) start(logLine chan *LogLine) {
 
 			if batchSize+len(l.entry.Line) > l.BatchSize {
 				if err := l.sendBatch(batch); err != nil {
-					fmt.Fprintf(os.Stderr, "send size batch: %v", err)
+					fmt.Fprintf(os.Stderr, "ERROR: send size batch: %v\n", err)
 				}
 				batchSize = 0
 				batch = map[model.Fingerprint]*logproto.Stream{}
@@ -125,7 +125,7 @@ func (l *Loki) start(logLine chan *LogLine) {
 		case <-maxWait.C:
 			if len(batch) > 0 {
 				if err := l.sendBatch(batch); err != nil {
-					fmt.Fprintf(os.Stderr, "send time batch: %v", err)
+					fmt.Fprintf(os.Stderr, "ERROR: send time batch: %v\n", err)
 				}
 				batchSize = 0
 				batch = map[model.Fingerprint]*logproto.Stream{}

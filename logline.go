@@ -22,30 +22,31 @@ func (l LogLine) String() string {
 }
 
 func (l LogLine) Valid() bool {
-	parsed := []byte(fmt.Sprintf("%s %s %s %s %s", severityByte(l.Severity), l.Hostname, l.Facility, l.Program, l.Msg))
+	parsed := []byte(fmt.Sprintf("%s %s %s %s %s",
+		setSeverity(l.Severity), l.Hostname, l.Facility, l.Program, l.Msg))
 	return bytes.Equal(l.Raw, parsed)
 }
 
-func severityByte(a string) (b string) {
-	switch a {
+func setSeverity(in string) (out string) {
+	switch in {
 	case "emergency":
-		b = "0"
+		out = "0"
 	case "alert":
-		b = "1"
+		out = "1"
 	case "critical":
-		b = "2"
+		out = "2"
 	case "error":
-		b = "3"
+		out = "3"
 	case "warning":
-		b = "4"
+		out = "4"
 	case "notice":
-		b = "5"
+		out = "5"
 	case "info":
-		b = "6"
+		out = "6"
 	case "debug":
-		b = "7"
+		out = "7"
 	default:
-		b = "0"
+		out = "0"
 	}
 	return
 }

@@ -9,8 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var raw = []byte("6 pad kern fancy {\"key1\":\"val1\", \"key2\":\"val2\"}")
+
 func Test_scanLine(t *testing.T) {
-	raw := []byte("6 pad kern fancy {\"key1\":\"val1\", \"key2\":\"val2\"}")
 	severity := "info"
 	hostname := "pad"
 	facility := "kern"
@@ -22,15 +23,21 @@ func Test_scanLine(t *testing.T) {
 	assert.Equal(t, 0, res.Len())
 
 	res.Reset()
-	lm, err := scanLine(raw)
-	if err != nil {
+	ll, err := scanLine(raw)
+	if err != nil || !ll.Valid() {
 		t.Fail()
 	}
-	assert.Equal(t, severity, lm.Severity)
-	assert.Equal(t, hostname, lm.Hostname)
-	assert.Equal(t, facility, lm.Facility)
-	assert.Equal(t, program, lm.Program)
-	assert.Equal(t, msg, lm.Msg)
+	assert.Equal(t, severity, ll.Severity)
+	assert.Equal(t, hostname, ll.Hostname)
+	assert.Equal(t, facility, ll.Facility)
+	assert.Equal(t, program, ll.Program)
+	assert.Equal(t, msg, ll.Msg)
+}
+
+func Benchmark_scanLine(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		scanLine(raw)
+	}
 }
 
 func ping() {
