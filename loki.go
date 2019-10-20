@@ -57,11 +57,6 @@ func (l *Loki) setup() error {
 	u.Path = getPath
 	q := u.Query()
 	u.RawQuery = q.Encode()
-
-	_, err = http.Get(u.String())
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -100,13 +95,12 @@ func (l *Loki) start(logLine chan *LogLine) {
 			}
 
 			l.entry = entry{model.LabelSet{}, &logproto.Entry{Timestamp: ts}}
-
 			l.entry.labels["job"] = jobName
 			l.entry.labels["level"] = model.LabelValue(ll.Severity)
 			l.entry.labels["hostname"] = model.LabelValue(ll.Hostname)
 			l.entry.labels["facility"] = model.LabelValue(ll.Facility)
 			l.entry.labels["program"] = model.LabelValue(ll.Program)
-			l.entry.labels["msg"] = model.LabelValue(ll.Msg)
+			l.entry.Entry.Line = ll.Msg
 
 			if batchSize+len(l.entry.Line) > l.BatchSize {
 				if err := l.sendBatch(batch); err != nil {

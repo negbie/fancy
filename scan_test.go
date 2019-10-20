@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"log"
+	"log/syslog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,4 +31,12 @@ func Test_scanLine(t *testing.T) {
 	assert.Equal(t, facility, lm.Facility)
 	assert.Equal(t, program, lm.Program)
 	assert.Equal(t, msg, lm.Msg)
+}
+
+func ping() {
+	w, err := syslog.Dial("tcp", "localhost:514", syslog.LOG_DEBUG, "fancy")
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Info("ping fancy!")
 }
