@@ -10,7 +10,7 @@ const seperator = ' '
 
 var errScan = fmt.Errorf("Unexpected rsyslog template format")
 
-func scanLine(raw []byte) (*LogLine, error) {
+func scanLine(raw []byte, metricOnly bool) (*LogLine, error) {
 	ll := &LogLine{
 		Raw:       raw,
 		Timestamp: time.Now(),
@@ -31,16 +31,12 @@ func scanLine(raw []byte) (*LogLine, error) {
 		return nil, errScan
 	}
 	endPos += curPos
-	ll.Facility = string(ll.Raw[curPos:endPos])
-	curPos = endPos + 1
-
-	endPos = bytes.IndexRune(ll.Raw[curPos:], seperator)
-	if endPos == -1 {
-		return nil, errScan
-	}
-	endPos += curPos
 	ll.Program = string(ll.Raw[curPos:endPos])
 	curPos = endPos + 1
+
+	if metricOnly {
+		return ll, nil
+	}
 
 	ll.Msg = string(ll.Raw[curPos:])
 

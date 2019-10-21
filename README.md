@@ -14,7 +14,7 @@
 ```bash
     module(load="omprog")
 
-    $template fancy,"%syslogseverity% %hostname% %syslogfacility-text% %programname%%msg%\n"
+    $template fancy,"%syslogseverity% %hostname% %programname%%msg%\n"
 
     action(type="omprog" name="fancy" template="fancy" output="/var/log/fancy.log" binary="/opt/fancy -lokiurl http://lokihost:3100")
 ```

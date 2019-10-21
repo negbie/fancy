@@ -98,7 +98,6 @@ func (l *Loki) Run() {
 			l.entry.labels["job"] = jobName
 			l.entry.labels["level"] = model.LabelValue(ll.Severity)
 			l.entry.labels["hostname"] = model.LabelValue(ll.Hostname)
-			l.entry.labels["facility"] = model.LabelValue(ll.Facility)
 			l.entry.labels["program"] = model.LabelValue(ll.Program)
 			l.entry.Entry.Line = ll.Msg
 

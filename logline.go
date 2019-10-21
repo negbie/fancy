@@ -10,20 +10,19 @@ type LogLine struct {
 	Timestamp time.Time
 	Severity  string
 	Hostname  string
-	Facility  string
 	Program   string
 	Msg       string
 	Raw       []byte
 }
 
 func (l LogLine) String() string {
-	return fmt.Sprintf("time:%v severity:%s hostname:%s facility:%s program:%s msg:%s raw:%s\n",
-		l.Timestamp, l.Severity, l.Hostname, l.Facility, l.Program, l.Msg, l.Raw)
+	return fmt.Sprintf("time:%v severity:%s hostname:%s program:%s msg:%s raw:%s\n",
+		l.Timestamp, l.Severity, l.Hostname, l.Program, l.Msg, l.Raw)
 }
 
 func (l LogLine) Valid() bool {
-	parsed := []byte(fmt.Sprintf("%s %s %s %s %s",
-		setSeverity(l.Severity), l.Hostname, l.Facility, l.Program, l.Msg))
+	parsed := []byte(fmt.Sprintf("%s %s %s %s",
+		setSeverity(l.Severity), l.Hostname, l.Program, l.Msg))
 	return bytes.Equal(l.Raw, parsed)
 }
 
