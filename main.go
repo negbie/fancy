@@ -18,7 +18,7 @@ import (
 const version = "1.2"
 
 func main() {
-	fmt.Fprintf(os.Stderr, "%v start fancy v.%s with %s\n", time.Now(), version, os.Args[1:])
+	fmt.Fprintf(os.Stderr, "%v start fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
 	os.Exit(parseAndRun(os.Stderr, os.Stdin, os.Args[1:]))
 }
 
@@ -35,6 +35,8 @@ var (
 
 func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 	fs := flag.NewFlagSet("fancy", flag.ContinueOnError)
+	lastWarn := time.Now()
+	defer fmt.Fprintf(stderr, "%v end fancy with flags %s\n", lastWarn, args)
 	var (
 		lokiURL    = fs.String("lokiurl", "http://localhost:3100", "Loki Server URL")
 		chanSize   = fs.Int("chansize", 10000, "Loki buffered channel capacity")
@@ -45,13 +47,9 @@ func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 		promTag    = fs.String("promtag", "", "Will be used as a tag label for the fancy_input_scan_total metric")
 	)
 
-	lastWarn := time.Now()
 	err := ff.Parse(fs, args, ff.WithEnvVarPrefix("FANCY"))
 	if err != nil {
-		if err != flag.ErrHelp {
-			fmt.Fprintf(stderr, "%v ERROR: %v\n", lastWarn, err)
-		}
-		fmt.Fprintf(stderr, "%v end fancy with %s\n", lastWarn, args)
+		fmt.Fprintf(stderr, "%v ERROR: %v\n", lastWarn, err)
 		return 1
 	}
 
@@ -97,6 +95,5 @@ func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 			lastWarn = time.Now()
 		}
 	}
-	fmt.Fprintf(stderr, "%v end fancy with %s\n", lastWarn, args)
 	return 0
 }
