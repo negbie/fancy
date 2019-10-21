@@ -27,7 +27,7 @@ var (
 		Name: "fancy_input_scan_total",
 		Help: "Total number of logs received from rsyslog fancy template"},
 		[]string{"hostname", "program", "level", "facility"})
-	logHostProgSize = promauto.NewCounterVec(prometheus.CounterOpts{
+	logScanSize = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fancy_input_raw_bytes_total",
 		Help: "Total number of bytes received from rsyslog fancy template"},
 		[]string{"hostname", "program"})
@@ -38,10 +38,10 @@ func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 	var (
 		lokiURL    = fs.String("lokiurl", "http://localhost:3100", "Loki Server URL")
 		chanSize   = fs.Int("chansize", 10000, "Loki buffered channel capacity")
-		batchSize  = fs.Int("batchsize", 100*1024, "Loki will batch some bytes before sending them")
-		batchWait  = fs.Int("batchwait", 4, "Loki will send logs after some seconds")
-		metricOnly = fs.Bool("metriconly", false, "Only metrics for prometheus will be exposed")
-		promAddr   = fs.String("promaddr", ":9090", "Metrics endpoint address")
+		batchSize  = fs.Int("batchsize", 100*1024, "Loki will batch these bytes before sending them")
+		batchWait  = fs.Int("batchwait", 4, "Loki will send logs after these seconds")
+		metricOnly = fs.Bool("metriconly", false, "Only metrics for Prometheus will be exposed")
+		promAddr   = fs.String("promaddr", ":9090", "Prometheus scrape endpoint address")
 	)
 
 	lastWarn := time.Now()
@@ -79,9 +79,9 @@ func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 		}
 
 		if *metricOnly {
-			logSize := float64(len(ll.Raw))
+			rawSize := float64(len(ll.Raw))
 			logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, ll.Facility).Inc()
-			logHostProgSize.WithLabelValues(ll.Hostname, ll.Program).Add(logSize)
+			logScanSize.WithLabelValues(ll.Hostname, ll.Program).Add(rawSize)
 			continue
 		}
 
