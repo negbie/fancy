@@ -21,3 +21,6 @@
 5. Make sure you have set the right Loki URL
 6. Restart `rsyslog`. systemctl restart rsyslog
 7. Check logs under /var/log/syslog and /var/log/fancy.log
+8. Make a fancy dashboard! Uh fancy :)
+
+![fancy_dashboard](https://user-images.githubusercontent.com/20154956/67338148-cab70600-f528-11e9-97c3-5782e4714193.png)
