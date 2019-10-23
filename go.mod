@@ -8,6 +8,5 @@ require (
 	github.com/peterbourgon/ff v1.6.0
 	github.com/prometheus/client_golang v1.2.1
 	github.com/prometheus/common v0.7.0
-	github.com/stretchr/testify v1.3.0
-	golang.org/x/sys v0.0.0-20191020212454-3e7259c5e7c2 // indirect
+	golang.org/x/sys v0.0.0-20191023151326-f89234f9a2c2 // indirect
 )

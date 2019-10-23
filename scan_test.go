@@ -1,36 +1,49 @@
 package main
 
 import (
-	"bytes"
 	"log"
 	"log/syslog"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 var raw = []byte("6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}")
 
+type TestCase struct {
+	input []byte
+	want  string
+	err   error
+}
+
 func Test_scanLine(t *testing.T) {
-	severity := "info"
-	hostname := "pad"
-	program := "fancy"
-	msg := "{\"key1\":\"val1\", \"key2\":\"val2\"}"
-	res := bytes.NewBufferString("")
-	metricOnly := false
-
-	scanLine(raw, metricOnly)
-	assert.Equal(t, 0, res.Len())
-
-	res.Reset()
-	ll, err := scanLine(raw, metricOnly)
-	if err != nil {
-		t.Fail()
+	cases := []TestCase{
+		TestCase{
+			input: []byte("6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
+			want:  "6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}",
+			err:   nil,
+		},
+		TestCase{
+			input: []byte("6 pad fancy"),
+			want:  "",
+			err:   errLength,
+		},
+		TestCase{
+			input: []byte("9 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
+			want:  "",
+			err:   errLevel,
+		},
+		TestCase{
+			input: []byte("6padfancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
+			want:  "",
+			err:   errTemplate,
+		},
 	}
-	assert.Equal(t, severity, ll.Severity)
-	assert.Equal(t, hostname, ll.Hostname)
-	assert.Equal(t, program, ll.Program)
-	assert.Equal(t, msg, ll.Msg)
+
+	for _, c := range cases {
+		got, err := scanLine(c.input, false)
+		if err != c.err || got.String() != c.want {
+			t.Errorf("got %q,%v but want %q,%v", got.String(), err, c.want, c.err)
+		}
+	}
 }
 
 func Benchmark_scanLine(b *testing.B) {

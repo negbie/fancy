@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 )
 
@@ -15,9 +14,11 @@ type LogLine struct {
 	Raw       []byte
 }
 
-func (l LogLine) String() string {
-	return fmt.Sprintf("time:%v severity:%s hostname:%s program:%s msg:%s raw:%s\n",
-		l.Timestamp, l.Severity, l.Hostname, l.Program, l.Msg, l.Raw)
+func (l *LogLine) String() string {
+	if l == nil {
+		return ""
+	}
+	return setSeverity(l.Severity) + " " + l.Hostname + " " + l.Program + " " + l.Msg
 }
 
 func (l *LogLine) Valid() bool {
