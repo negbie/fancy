@@ -15,11 +15,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const version = "1.2"
+const version = "1.3"
 
 func main() {
 	fmt.Fprintf(os.Stderr, "%v start fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
-	os.Exit(parseAndRun(os.Stderr, os.Stdin, os.Args[1:]))
+	os.Exit(start(os.Stderr, os.Stdin, os.Args[1:]))
 }
 
 var (
@@ -33,7 +33,7 @@ var (
 		[]string{"hostname", "program"})
 )
 
-func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
+func start(stderr io.Writer, stdin io.Reader, args []string) int {
 	fs := flag.NewFlagSet("fancy", flag.ContinueOnError)
 	lastWarn := time.Now()
 	defer fmt.Fprintf(stderr, "%v end fancy with flags %s\n", lastWarn, args)
@@ -76,7 +76,7 @@ func parseAndRun(stderr io.Writer, stdin io.Reader, args []string) int {
 		ll, err := scanLine(s.Bytes(), *metricOnly)
 		if err != nil {
 			fmt.Fprintf(stderr, "%v ERROR: %v\n", lastWarn, err)
-			return 1
+			continue
 		}
 
 		if *metricOnly {
