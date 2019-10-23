@@ -20,10 +20,9 @@ func (l LogLine) String() string {
 		l.Timestamp, l.Severity, l.Hostname, l.Program, l.Msg, l.Raw)
 }
 
-func (l LogLine) Valid() bool {
-	parsed := []byte(fmt.Sprintf("%s %s %s %s",
-		setSeverity(l.Severity), l.Hostname, l.Program, l.Msg))
-	return bytes.Equal(l.Raw, parsed)
+func (l *LogLine) Valid() bool {
+	prefix := []byte(setSeverity(l.Severity) + " " + l.Hostname + " " + l.Program + " ")
+	return bytes.HasPrefix(l.Raw, prefix)
 }
 
 func setSeverity(in string) (out string) {

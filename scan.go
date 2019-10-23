@@ -11,16 +11,20 @@ const seperator = ' '
 var errScan = fmt.Errorf("Unexpected rsyslog template format")
 
 func scanLine(raw []byte, metricOnly bool) (*LogLine, error) {
+	var err error
 	ll := &LogLine{
 		Raw:       raw,
 		Timestamp: time.Now(),
-		Severity:  getSeverity(raw[0]),
+	}
+
+	if ll.Severity, err = getSeverity(raw[0]); err != nil {
+		return nil, err
 	}
 
 	var curPos, endPos = 2, 2
 	endPos = bytes.IndexRune(ll.Raw[curPos:], seperator)
 	if endPos == -1 {
-		return nil, errScan
+
 	}
 	endPos += curPos
 	ll.Hostname = string(ll.Raw[curPos:endPos])
@@ -34,6 +38,10 @@ func scanLine(raw []byte, metricOnly bool) (*LogLine, error) {
 	ll.Program = string(ll.Raw[curPos:endPos])
 	curPos = endPos + 1
 
+	if !ll.Valid() {
+		return nil, errScan
+	}
+
 	if metricOnly {
 		return ll, nil
 	}
@@ -43,7 +51,7 @@ func scanLine(raw []byte, metricOnly bool) (*LogLine, error) {
 	return ll, nil
 }
 
-func getSeverity(in byte) (out string) {
+func getSeverity(in byte) (out string, err error) {
 	switch in {
 	case 48: // 0
 		out = "emergency"
@@ -62,7 +70,7 @@ func getSeverity(in byte) (out string) {
 	case 55: // 7
 		out = "debug"
 	default:
-		out = "unknown"
+		return "", errScan
 	}
-	return
+	return out, nil
 }

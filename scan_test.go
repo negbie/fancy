@@ -24,7 +24,7 @@ func Test_scanLine(t *testing.T) {
 
 	res.Reset()
 	ll, err := scanLine(raw, metricOnly)
-	if err != nil || !ll.Valid() {
+	if err != nil {
 		t.Fail()
 	}
 	assert.Equal(t, severity, ll.Severity)
