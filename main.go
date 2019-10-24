@@ -82,7 +82,7 @@ func (in *Input) run(stderr io.Writer, stdin io.Reader) {
 	for s.Scan() {
 		ll, err := scanLine(s.Bytes(), in.metricOnly)
 		if err != nil {
-			fmt.Fprintf(stderr, "%v ERROR: %v\n", t, err)
+			fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
 			continue
 		}
 
