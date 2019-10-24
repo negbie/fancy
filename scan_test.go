@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"log"
 	"log/syslog"
 	"testing"
 )
 
-var raw = []byte("6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}")
+var raw = []byte("6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}\n")
 
 type TestCase struct {
 	input []byte
@@ -47,9 +48,17 @@ func Test_scanLine(t *testing.T) {
 }
 
 func Benchmark_scanLine(b *testing.B) {
-	metricOnly := true
+	input := &Input{
+		metricOnly: false,
+		lineChan:   make(chan *LogLine, 1000),
+	}
+
+	stdout := bytes.NewBuffer(make([]byte, 0, 8192))
+	stdin := bytes.NewBuffer(make([]byte, 0, 8192))
+	go input.run(stdout, stdin)
+
 	for i := 0; i < b.N; i++ {
-		scanLine(raw, metricOnly)
+		stdin.Write(raw)
 	}
 }
 
