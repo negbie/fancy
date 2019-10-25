@@ -45,6 +45,7 @@ func scanLine(raw []byte, metricOnly bool) (*LogLine, error) {
 	endPos += curPos
 	ll.Program = string(ll.Raw[curPos:endPos])
 	curPos = endPos + 1
+	ll.MsgPos = curPos
 
 	if !ll.Valid() {
 		return nil, errTemplate
@@ -54,7 +55,7 @@ func scanLine(raw []byte, metricOnly bool) (*LogLine, error) {
 		return ll, nil
 	}
 
-	ll.Msg = string(ll.Raw[curPos:])
+	ll.Msg = string(ll.Raw[ll.MsgPos:])
 
 	return ll, nil
 }

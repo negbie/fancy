@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"log/syslog"
+	"sync"
 	"testing"
 )
 
@@ -55,11 +56,17 @@ func Benchmark_scanLine(b *testing.B) {
 
 	stdout := bytes.NewBuffer(make([]byte, 0, 8192))
 	stdin := bytes.NewBuffer(make([]byte, 0, 8192))
-	go input.run(stdout, stdin)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		input.run(stdout, stdin)
+		wg.Done()
+	}()
 
 	for i := 0; i < b.N; i++ {
 		stdin.Write(raw)
 	}
+	wg.Wait()
 }
 
 func ping() {

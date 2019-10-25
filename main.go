@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,6 +26,7 @@ func main() {
 		chanSize   = fs.Int("chansize", 10000, "Loki buffered channel capacity")
 		batchSize  = fs.Int("batchsize", 100*1024, "Loki will batch these bytes before sending them")
 		batchWait  = fs.Int("batchwait", 4, "Loki will send logs after these seconds")
+		cmd        = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
 		metricOnly = fs.Bool("metriconly", false, "Only metrics for Prometheus will be exposed")
 		promAddr   = fs.String("promaddr", ":9090", "Prometheus scrape endpoint address")
 		promTag    = fs.String("promtag", "", "Will be used as a tag label for the fancy_input_scan_total metric")
@@ -35,6 +39,7 @@ func main() {
 	input := &Input{
 		promTag:    *promTag,
 		metricOnly: *metricOnly,
+		cmd:        strings.Fields(*cmd),
 	}
 
 	if *metricOnly {
@@ -73,6 +78,7 @@ var (
 type Input struct {
 	lineChan   chan *LogLine
 	metricOnly bool
+	cmd        []string
 	promTag    string
 }
 
@@ -91,6 +97,17 @@ func (in *Input) run(stderr io.Writer, stdin io.Reader) {
 			logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, in.promTag).Inc()
 			logScanSize.WithLabelValues(ll.Hostname, ll.Program).Add(rawSize)
 			continue
+		}
+
+		if len(in.cmd) > 0 {
+			c := exec.Command(in.cmd[0], in.cmd[1:]...)
+			c.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
+			out, err := c.Output()
+			if err != nil {
+				fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
+				continue
+			}
+			ll.Msg = string(out)
 		}
 
 		select {

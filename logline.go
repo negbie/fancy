@@ -10,6 +10,7 @@ type LogLine struct {
 	Severity  string
 	Hostname  string
 	Program   string
+	MsgPos    int
 	Msg       string
 	Raw       []byte
 }
