@@ -52,6 +52,7 @@ func Benchmark_scanLine(b *testing.B) {
 	input := &Input{
 		metricOnly: false,
 		lineChan:   make(chan *LogLine, 1000),
+		//cmd:        exec.Command("wc", "-l"),
 	}
 
 	stdout := bytes.NewBuffer(make([]byte, 0, 8192))

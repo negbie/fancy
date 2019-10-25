@@ -39,7 +39,11 @@ func main() {
 	input := &Input{
 		promTag:    *promTag,
 		metricOnly: *metricOnly,
-		cmd:        strings.Fields(*cmd),
+	}
+
+	s := strings.Fields(*cmd)
+	if len(s) > 0 {
+		input.cmd = exec.Command(s[0], s[1:]...)
 	}
 
 	if *metricOnly {
@@ -78,7 +82,7 @@ var (
 type Input struct {
 	lineChan   chan *LogLine
 	metricOnly bool
-	cmd        []string
+	cmd        *exec.Cmd
 	promTag    string
 }
 
@@ -99,10 +103,9 @@ func (in *Input) run(stderr io.Writer, stdin io.Reader) {
 			continue
 		}
 
-		if len(in.cmd) > 0 {
-			c := exec.Command(in.cmd[0], in.cmd[1:]...)
-			c.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
-			out, err := c.Output()
+		if in.cmd != nil {
+			in.cmd.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
+			out, err := in.cmd.Output()
 			if err != nil {
 				fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
 				continue
