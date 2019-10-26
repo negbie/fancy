@@ -51,9 +51,10 @@ func Test_parseLine(t *testing.T) {
 func Benchmark_parseLine(b *testing.B) {
 	input := &Input{
 		//cmd:        []string{"tr", "[a-z]", "[A-Z]"},
-		metricOnly: true,
-		lineChan:   make(chan *LogLine, 1000),
-		scanChan:   make(chan [scanSize][]byte, 1000),
+		metricOnly:    true,
+		promTagFilter: []byte("val1"),
+		lineChan:      make(chan *LogLine, 1000),
+		scanChan:      make(chan [scanSize][]byte, 1000),
 	}
 
 	var stdout bytes.Buffer

@@ -17,20 +17,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const version = "1.4"
+const version = "1.5"
 const scanSize = 20
 
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
 	var (
-		lokiURL    = fs.String("lokiurl", "http://localhost:3100", "Loki Server URL")
-		chanSize   = fs.Int("chansize", 10000, "Loki buffered channel capacity")
-		batchSize  = fs.Int("batchsize", 100*1024, "Loki will batch these bytes before sending them")
-		batchWait  = fs.Int("batchwait", 4, "Loki will send logs after these seconds")
-		cmd        = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
-		metricOnly = fs.Bool("metriconly", false, "Only metrics for Prometheus will be exposed")
-		promAddr   = fs.String("promaddr", ":9090", "Prometheus scrape endpoint address")
-		promTag    = fs.String("promtag", "", "Will be used as a tag label for the fancy_input_scan_total metric")
+		cmd           = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
+		lokiURL       = fs.String("loki-url", "http://localhost:3100", "Loki Server URL")
+		chanSize      = fs.Int("chan-size", 10000, "Loki buffered channel capacity")
+		batchSize     = fs.Int("batch-size", 100*1024, "Loki will batch these bytes before sending them")
+		batchWait     = fs.Int("batch-wait", 4, "Loki will send logs after these seconds")
+		metricOnly    = fs.Bool("metric-only", false, "Only metrics for Prometheus will be exposed")
+		promAddr      = fs.String("prom-addr", ":9090", "Prometheus scrape endpoint address")
+		promTag       = fs.String("prom-tag", "", "Will be used as a tag label for the fancy_input_scan_total metric")
+		promTagFilter = fs.String("prom-tag-filter", "", "Use prom-tag only when msg contains this string")
 	)
 	fs.Parse(os.Args[1:])
 
@@ -38,10 +39,11 @@ func main() {
 	defer fmt.Fprintf(os.Stderr, "%v end fancy with flags %s\n", t, os.Args[1:])
 
 	input := &Input{
-		cmd:        strings.Fields(*cmd),
-		promTag:    *promTag,
-		metricOnly: *metricOnly,
-		scanChan:   make(chan [scanSize][]byte, 1000),
+		cmd:           strings.Fields(*cmd),
+		promTag:       *promTag,
+		promTagFilter: []byte(*promTagFilter),
+		metricOnly:    *metricOnly,
+		scanChan:      make(chan [scanSize][]byte, 1000),
 	}
 
 	if *metricOnly {
@@ -82,12 +84,13 @@ var (
 )
 
 type Input struct {
-	scanChan   chan [scanSize][]byte
-	lineChan   chan *LogLine
-	metricOnly bool
-	cmd        []string
-	promTag    string
-	cache      Cache
+	scanChan      chan [scanSize][]byte
+	lineChan      chan *LogLine
+	metricOnly    bool
+	cmd           []string
+	promTag       string
+	promTagFilter []byte
+	cache         Cache
 }
 
 type Cache struct {
@@ -134,6 +137,12 @@ func (in *Input) process() {
 			}
 
 			if in.metricOnly {
+				if len(in.promTagFilter) > 0 {
+					if !bytes.Contains(ll.Raw[ll.MsgPos:], in.promTagFilter) {
+						in.promTag = ""
+					}
+				}
+
 				rawSize := float64(len(ll.Raw))
 				logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, in.promTag).Inc()
 				logScanSize.WithLabelValues(ll.Hostname, ll.Program).Add(rawSize)

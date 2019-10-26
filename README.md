@@ -16,7 +16,7 @@
 
     $template fancy,"%syslogseverity% %hostname% %programname%%msg%\n"
 
-    action(type="omprog" name="fancy" template="fancy" output="/var/log/fancy.log" binary="/opt/fancy -lokiurl http://lokihost:3100")
+    action(type="omprog" name="fancy" template="fancy" output="/var/log/fancy.log" binary="/opt/fancy --loki-url http://lokihost:3100")
 ```
 5. Make sure you have set the right Loki URL
 6. Restart `rsyslog`. systemctl restart rsyslog
