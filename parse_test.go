@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"log/syslog"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -50,9 +51,10 @@ func Test_parseLine(t *testing.T) {
 
 func Benchmark_parseLine(b *testing.B) {
 	input := &Input{
-		//cmd:        []string{"tr", "[a-z]", "[A-Z]"},
+		cmd:        []string{"tr", "[a-z]", "[A-Z]"},
 		metricOnly: true,
 		lineChan:   make(chan *LogLine, 1000),
+		scanChan:   make(chan [CacheSize][]byte, 1000),
 	}
 
 	var stdout bytes.Buffer
@@ -62,10 +64,14 @@ func Benchmark_parseLine(b *testing.B) {
 		stdin.Write(raw)
 	}
 
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go input.process()
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		input.process(&stdout, &stdin)
+		input.scan(&stdout, &stdin)
 		wg.Done()
 	}()
 	wg.Wait()

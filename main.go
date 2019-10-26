@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,7 +18,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const version = "1.3"
+const version = "1.4"
+const CacheSize = 2048
 
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
@@ -40,6 +42,7 @@ func main() {
 		cmd:        strings.Fields(*cmd),
 		promTag:    *promTag,
 		metricOnly: *metricOnly,
+		scanChan:   make(chan [CacheSize][]byte, 1000),
 	}
 
 	if *metricOnly {
@@ -59,8 +62,12 @@ func main() {
 		go l.Run()
 	}
 
-	fmt.Fprintf(os.Stderr, "%v start fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
-	input.process(os.Stderr, os.Stdin)
+	fmt.Fprintf(os.Stderr, "%v run fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go input.process()
+	}
+
+	input.scan(os.Stderr, os.Stdin)
 	os.Exit(0)
 }
 
@@ -76,47 +83,83 @@ var (
 )
 
 type Input struct {
+	scanChan   chan [CacheSize][]byte
 	lineChan   chan *LogLine
 	metricOnly bool
 	cmd        []string
 	promTag    string
+	cache      Cache
 }
 
-func (in *Input) process(stderr io.Writer, stdin io.Reader) {
-	t := time.Now()
-	s := bufio.NewScanner(stdin)
-	for s.Scan() {
-		ll, err := parseLine(s.Bytes(), in.metricOnly)
+type Cache struct {
+	buf [CacheSize][]byte
+	pos int
+}
+
+func batchScan(c chan [CacheSize][]byte, cache *Cache, value []byte) {
+	cache.buf[cache.pos] = value
+	cache.pos++
+	if cache.pos == CacheSize {
+		c <- cache.buf
+		cache.pos = 0
+	}
+}
+
+func (in *Input) scan(stderr io.Writer, stdin io.Reader) {
+	var err error
+	r := bufio.NewReader(stdin)
+	line := make([]byte, 0, 8192)
+	defer close(in.scanChan)
+	for {
+		line, err = r.ReadBytes('\n')
 		if err != nil {
+			if err == io.EOF {
+				fmt.Fprintf(stderr, "%v INFO: %v\n", time.Now(), err)
+				break
+			}
 			fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
-			continue
+			break
 		}
+		batchScan(in.scanChan, &in.cache, line)
+	}
+}
 
-		if in.metricOnly {
-			rawSize := float64(len(ll.Raw))
-			logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, in.promTag).Inc()
-			logScanSize.WithLabelValues(ll.Hostname, ll.Program).Add(rawSize)
-			continue
-		}
-
-		if len(in.cmd) > 0 {
-			c := exec.Command(in.cmd[0], in.cmd[1:]...)
-			c.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
-			out, err := c.Output()
+func (in *Input) process() {
+	t := time.Now()
+	for s := range in.scanChan {
+		for i := 0; i < len(s); i++ {
+			ll, err := parseLine(s[i], in.metricOnly)
 			if err != nil {
-				fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
+				fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", time.Now(), err)
 				continue
 			}
-			ll.Msg = string(out)
-		}
 
-		select {
-		case in.lineChan <- ll:
-		default:
-			if time.Since(t) > 1e9 {
-				fmt.Fprintf(stderr, "%v ERROR: overflowing Loki buffered channel capacity\n", t)
+			if in.metricOnly {
+				rawSize := float64(len(ll.Raw))
+				logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, in.promTag).Inc()
+				logScanSize.WithLabelValues(ll.Hostname, ll.Program).Add(rawSize)
+				continue
 			}
-			t = time.Now()
+
+			if len(in.cmd) > 0 {
+				c := exec.Command(in.cmd[0], in.cmd[1:]...)
+				c.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
+				out, err := c.Output()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", time.Now(), err)
+					continue
+				}
+				ll.Msg = string(out)
+			}
+
+			select {
+			case in.lineChan <- ll:
+			default:
+				if time.Since(t) > 1e9 {
+					fmt.Fprintf(os.Stderr, "%v ERROR: overflowing Loki buffered channel capacity\n", t)
+				}
+				t = time.Now()
+			}
 		}
 	}
 }

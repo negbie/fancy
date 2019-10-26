@@ -25,7 +25,7 @@ func parseLine(raw []byte, metricOnly bool) (*LogLine, error) {
 		return nil, errLength
 	}
 
-	if ll.Severity, err = getSeverity(raw[0]); err != nil {
+	if ll.Severity, err = getSeverity(ll.Raw[0]); err != nil {
 		return nil, err
 	}
 
