@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const version = "1.3"
+const version = "1.4"
 
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
@@ -37,13 +38,10 @@ func main() {
 	defer fmt.Fprintf(os.Stderr, "%v end fancy with flags %s\n", t, os.Args[1:])
 
 	input := &Input{
+		cmd:        strings.Fields(*cmd),
 		promTag:    *promTag,
 		metricOnly: *metricOnly,
-	}
-
-	s := strings.Fields(*cmd)
-	if len(s) > 0 {
-		input.cmd = exec.Command(s[0], s[1:]...)
+		scanChan:   make(chan []byte, *chanSize),
 	}
 
 	if *metricOnly {
@@ -64,7 +62,11 @@ func main() {
 	}
 
 	fmt.Fprintf(os.Stderr, "%v run fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
-	input.run(os.Stderr, os.Stdin)
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go input.process()
+	}
+
+	input.scan(os.Stderr, os.Stdin)
 	os.Exit(0)
 }
 
@@ -80,19 +82,38 @@ var (
 )
 
 type Input struct {
+	scanChan   chan []byte
 	lineChan   chan *LogLine
 	metricOnly bool
-	cmd        *exec.Cmd
+	cmd        []string
 	promTag    string
 }
 
-func (in *Input) run(stderr io.Writer, stdin io.Reader) {
-	t := time.Now()
-	s := bufio.NewScanner(stdin)
-	for s.Scan() {
-		ll, err := scanLine(s.Bytes(), in.metricOnly)
+func (in *Input) scan(stderr io.Writer, stdin io.Reader) {
+	var err error
+	r := bufio.NewReader(stdin)
+	line := make([]byte, 0, 8192)
+	defer close(in.scanChan)
+	for {
+		line, err = r.ReadBytes('\n')
 		if err != nil {
+			if err == io.EOF {
+				fmt.Fprintf(stderr, "%v INFO: %v\n", time.Now(), err)
+				break
+			}
 			fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
+			break
+		}
+		in.scanChan <- line
+	}
+}
+
+func (in *Input) process() {
+	t := time.Now()
+	for s := range in.scanChan {
+		ll, err := parseLine(s, in.metricOnly)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", time.Now(), err)
 			continue
 		}
 
@@ -103,11 +124,12 @@ func (in *Input) run(stderr io.Writer, stdin io.Reader) {
 			continue
 		}
 
-		if in.cmd != nil {
-			in.cmd.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
-			out, err := in.cmd.Output()
+		if len(in.cmd) > 0 {
+			c := exec.Command(in.cmd[0], in.cmd[1:]...)
+			c.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
+			out, err := c.Output()
 			if err != nil {
-				fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
+				fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", time.Now(), err)
 				continue
 			}
 			ll.Msg = string(out)
@@ -117,7 +139,7 @@ func (in *Input) run(stderr io.Writer, stdin io.Reader) {
 		case in.lineChan <- ll:
 		default:
 			if time.Since(t) > 1e9 {
-				fmt.Fprintf(stderr, "%v ERROR: overflowing Loki buffered channel capacity\n", t)
+				fmt.Fprintf(os.Stderr, "%v ERROR: overflowing Loki buffered channel capacity\n", t)
 			}
 			t = time.Now()
 		}
