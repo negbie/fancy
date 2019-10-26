@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 )
 
 const version = "1.4"
-const CacheSize = 2048
+const scanSize = 20
 
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
@@ -42,7 +41,7 @@ func main() {
 		cmd:        strings.Fields(*cmd),
 		promTag:    *promTag,
 		metricOnly: *metricOnly,
-		scanChan:   make(chan [CacheSize][]byte, 1000),
+		scanChan:   make(chan [scanSize][]byte, 1000),
 	}
 
 	if *metricOnly {
@@ -63,7 +62,7 @@ func main() {
 	}
 
 	fmt.Fprintf(os.Stderr, "%v run fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
-	for i := 0; i < runtime.NumCPU(); i++ {
+	for i := 0; i < 8; i++ {
 		go input.process()
 	}
 
@@ -83,7 +82,7 @@ var (
 )
 
 type Input struct {
-	scanChan   chan [CacheSize][]byte
+	scanChan   chan [scanSize][]byte
 	lineChan   chan *LogLine
 	metricOnly bool
 	cmd        []string
@@ -92,14 +91,14 @@ type Input struct {
 }
 
 type Cache struct {
-	buf [CacheSize][]byte
+	buf [scanSize][]byte
 	pos int
 }
 
-func batchScan(c chan [CacheSize][]byte, cache *Cache, value []byte) {
+func batchScan(c chan [scanSize][]byte, cache *Cache, value []byte) {
 	cache.buf[cache.pos] = value
 	cache.pos++
-	if cache.pos == CacheSize {
+	if cache.pos == scanSize {
 		c <- cache.buf
 		cache.pos = 0
 	}
