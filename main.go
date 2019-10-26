@@ -18,19 +18,19 @@ import (
 )
 
 const version = "1.5"
-const scanSize = 20
+const scanSize = 16
 
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
 	var (
 		cmd           = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
 		lokiURL       = fs.String("loki-url", "http://localhost:3100", "Loki Server URL")
-		chanSize      = fs.Int("chan-size", 10000, "Loki buffered channel capacity")
-		batchSize     = fs.Int("batch-size", 100*1024, "Loki will batch these bytes before sending them")
-		batchWait     = fs.Int("batch-wait", 4, "Loki will send logs after these seconds")
-		metricOnly    = fs.Bool("metric-only", false, "Only metrics for Prometheus will be exposed")
+		lokiChanSize  = fs.Int("loki-chan-size", 10000, "Loki buffered channel capacity")
+		lokiBatchSize = fs.Int("loki-batch-size", 100*1024, "Loki will batch these bytes before sending them")
+		lokiBatchWait = fs.Int("loki-batch-wait", 4, "Loki will send logs after these seconds")
+		promOnly      = fs.Bool("prom-only", false, "Only metrics for Prometheus will be exposed")
 		promAddr      = fs.String("prom-addr", ":9090", "Prometheus scrape endpoint address")
-		promTag       = fs.String("prom-tag", "", "Will be used as a tag label for the fancy_input_scan_total metric")
+		promTag       = fs.String("prom-tag", "", "Will be used as a static label for the fancy_input_scan_total metric")
 		promTagFilter = fs.String("prom-tag-filter", "", "Use prom-tag only when msg contains this string")
 	)
 	fs.Parse(os.Args[1:])
@@ -40,13 +40,13 @@ func main() {
 
 	input := &Input{
 		cmd:           strings.Fields(*cmd),
+		promOnly:      *promOnly,
 		promTag:       *promTag,
 		promTagFilter: []byte(*promTagFilter),
-		metricOnly:    *metricOnly,
 		scanChan:      make(chan [scanSize][]byte, 1000),
 	}
 
-	if *metricOnly {
+	if *promOnly {
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			err := http.ListenAndServe(*promAddr, nil)
@@ -54,9 +54,10 @@ func main() {
 				fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", t, err)
 			}
 		}()
-	} else {
-		input.lineChan = make(chan *LogLine, *chanSize)
-		l, err := NewLoki(input.lineChan, *lokiURL, *batchSize, *batchWait)
+	} else if len(*lokiURL) > 3 {
+		input.useLoki = true
+		input.lineChan = make(chan *LogLine, *lokiChanSize)
+		l, err := NewLoki(input.lineChan, *lokiURL, *lokiBatchSize, *lokiBatchWait)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", t, err)
 		}
@@ -84,13 +85,14 @@ var (
 )
 
 type Input struct {
+	cmd           []string
+	cache         Cache
+	useLoki       bool
 	scanChan      chan [scanSize][]byte
 	lineChan      chan *LogLine
-	metricOnly    bool
-	cmd           []string
+	promOnly      bool
 	promTag       string
 	promTagFilter []byte
-	cache         Cache
 }
 
 type Cache struct {
@@ -128,28 +130,29 @@ func (in *Input) scan(stderr io.Writer, stdin io.Reader) {
 
 func (in *Input) process() {
 	t := time.Now()
+	promTag := in.promTag
 	for s := range in.scanChan {
 		for i := 0; i < len(s); i++ {
-			ll, err := parseLine(s[i], in.metricOnly)
+			ll, err := parseLine(s[i], in.promOnly)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", time.Now(), err)
 				continue
 			}
 
-			if in.metricOnly {
+			if in.promOnly {
 				if len(in.promTagFilter) > 0 {
 					if !bytes.Contains(ll.Raw[ll.MsgPos:], in.promTagFilter) {
-						in.promTag = ""
+						promTag = ""
 					}
 				}
 
 				rawSize := float64(len(ll.Raw))
-				logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, in.promTag).Inc()
+				logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, promTag).Inc()
 				logScanSize.WithLabelValues(ll.Hostname, ll.Program).Add(rawSize)
 				continue
 			}
 
-			if len(in.cmd) > 0 {
+			if len(in.cmd) > 0 && in.useLoki {
 				c := exec.Command(in.cmd[0], in.cmd[1:]...)
 				c.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
 				out, err := c.Output()
@@ -160,13 +163,15 @@ func (in *Input) process() {
 				ll.Msg = string(out)
 			}
 
-			select {
-			case in.lineChan <- ll:
-			default:
-				if time.Since(t) > 1e9 {
-					fmt.Fprintf(os.Stderr, "%v ERROR: overflowing Loki buffered channel capacity\n", t)
+			if in.useLoki {
+				select {
+				case in.lineChan <- ll:
+				default:
+					if time.Since(t) > 1e9 {
+						fmt.Fprintf(os.Stderr, "%v ERROR: overflowing Loki buffered channel capacity\n", t)
+					}
+					t = time.Now()
 				}
-				t = time.Now()
 			}
 		}
 	}
