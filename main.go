@@ -37,13 +37,9 @@ func main() {
 	defer fmt.Fprintf(os.Stderr, "%v end fancy with flags %s\n", t, os.Args[1:])
 
 	input := &Input{
+		cmd:        strings.Fields(*cmd),
 		promTag:    *promTag,
 		metricOnly: *metricOnly,
-	}
-
-	s := strings.Fields(*cmd)
-	if len(s) > 0 {
-		input.cmd = exec.Command(s[0], s[1:]...)
 	}
 
 	if *metricOnly {
@@ -63,8 +59,8 @@ func main() {
 		go l.Run()
 	}
 
-	fmt.Fprintf(os.Stderr, "%v run fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
-	input.run(os.Stderr, os.Stdin)
+	fmt.Fprintf(os.Stderr, "%v start fancy v.%s with flags %s\n", time.Now(), version, os.Args[1:])
+	input.process(os.Stderr, os.Stdin)
 	os.Exit(0)
 }
 
@@ -82,15 +78,15 @@ var (
 type Input struct {
 	lineChan   chan *LogLine
 	metricOnly bool
-	cmd        *exec.Cmd
+	cmd        []string
 	promTag    string
 }
 
-func (in *Input) run(stderr io.Writer, stdin io.Reader) {
+func (in *Input) process(stderr io.Writer, stdin io.Reader) {
 	t := time.Now()
 	s := bufio.NewScanner(stdin)
 	for s.Scan() {
-		ll, err := scanLine(s.Bytes(), in.metricOnly)
+		ll, err := parseLine(s.Bytes(), in.metricOnly)
 		if err != nil {
 			fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
 			continue
@@ -103,9 +99,10 @@ func (in *Input) run(stderr io.Writer, stdin io.Reader) {
 			continue
 		}
 
-		if in.cmd != nil {
-			in.cmd.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
-			out, err := in.cmd.Output()
+		if len(in.cmd) > 0 {
+			c := exec.Command(in.cmd[0], in.cmd[1:]...)
+			c.Stdin = bytes.NewReader(ll.Raw[ll.MsgPos:])
+			out, err := c.Output()
 			if err != nil {
 				fmt.Fprintf(stderr, "%v ERROR: %v\n", time.Now(), err)
 				continue

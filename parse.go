@@ -14,7 +14,7 @@ var (
 	errLength   = fmt.Errorf("Unexpected rsyslog message length")
 )
 
-func scanLine(raw []byte, metricOnly bool) (*LogLine, error) {
+func parseLine(raw []byte, metricOnly bool) (*LogLine, error) {
 	var err error
 	ll := &LogLine{
 		Raw:       raw,
