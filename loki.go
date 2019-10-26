@@ -33,21 +33,21 @@ type entry struct {
 
 type Loki struct {
 	entry
-	LokiURL   string
-	BatchWait time.Duration
-	BatchSize int
+	lokiURL   string
+	batchWait time.Duration
+	batchSize int
 	lineChan  chan *LogLine
 }
 
 func NewLoki(lineChan chan *LogLine, URL string, batchSize, batchWait int) (*Loki, error) {
 	l := &Loki{
-		LokiURL:   URL,
-		BatchSize: batchSize,
-		BatchWait: time.Duration(batchWait) * time.Second,
+		lokiURL:   URL,
+		batchSize: batchSize,
+		batchWait: time.Duration(batchWait) * time.Second,
 		lineChan:  lineChan,
 	}
 
-	u, err := url.Parse(l.LokiURL)
+	u, err := url.Parse(l.lokiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func NewLoki(lineChan chan *LogLine, URL string, batchSize, batchWait int) (*Lok
 		u.Path = postPath
 		q := u.Query()
 		u.RawQuery = q.Encode()
-		l.LokiURL = u.String()
+		l.lokiURL = u.String()
 	}
 	return l, nil
 }
@@ -64,14 +64,16 @@ func (l *Loki) Run() {
 	var (
 		curPktTime  time.Time
 		lastPktTime time.Time
-		maxWait     = time.NewTimer(l.BatchWait)
+		maxWait     = time.NewTimer(l.batchWait)
 		batch       = map[model.Fingerprint]*logproto.Stream{}
 		batchSize   = 0
 	)
 
 	defer func() {
-		if err := l.sendBatch(batch); err != nil {
-			fmt.Fprintf(os.Stderr, "%v ERROR: loki flush: %v\n", time.Now(), err)
+		if len(batch) > 0 {
+			if err := l.sendBatch(batch); err != nil {
+				fmt.Fprintf(os.Stderr, "%v ERROR: loki flush: %v\n", time.Now(), err)
+			}
 		}
 	}()
 
@@ -101,13 +103,13 @@ func (l *Loki) Run() {
 			l.entry.labels["program"] = model.LabelValue(ll.Program)
 			l.entry.Entry.Line = ll.Msg
 
-			if batchSize+len(l.entry.Line) > l.BatchSize {
+			if batchSize+len(l.entry.Line) > l.batchSize {
 				if err := l.sendBatch(batch); err != nil {
 					fmt.Fprintf(os.Stderr, "%v ERROR: send size batch: %v\n", lastPktTime, err)
 				}
 				batchSize = 0
 				batch = map[model.Fingerprint]*logproto.Stream{}
-				maxWait.Reset(l.BatchWait)
+				maxWait.Reset(l.batchWait)
 			}
 
 			batchSize += len(l.entry.Line)
@@ -129,7 +131,7 @@ func (l *Loki) Run() {
 				batchSize = 0
 				batch = map[model.Fingerprint]*logproto.Stream{}
 			}
-			maxWait.Reset(l.BatchWait)
+			maxWait.Reset(l.batchWait)
 		}
 	}
 }
@@ -165,7 +167,7 @@ func encodeBatch(batch map[model.Fingerprint]*logproto.Stream) ([]byte, error) {
 }
 
 func (l *Loki) send(ctx context.Context, buf []byte) (int, error) {
-	req, err := http.NewRequest("POST", l.LokiURL, bytes.NewReader(buf))
+	req, err := http.NewRequest("POST", l.lokiURL, bytes.NewReader(buf))
 	if err != nil {
 		return -1, err
 	}
