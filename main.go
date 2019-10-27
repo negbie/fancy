@@ -141,8 +141,9 @@ func (in *Input) process() {
 
 			if in.promOnly {
 				if len(in.promTagFilter) > 0 {
-					if !bytes.Contains(ll.Raw[ll.MsgPos:], in.promTagFilter) {
-						promTag = ""
+					promTag = ""
+					if bytes.Contains(ll.Raw[ll.MsgPos:], in.promTagFilter) {
+						promTag = in.promTag
 					}
 				}
 
