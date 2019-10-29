@@ -17,7 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const version = "1.5"
+const version = "1.6"
 const scanSize = 16
 
 func main() {
