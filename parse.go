@@ -10,6 +10,7 @@ const seperator = ' '
 
 var (
 	errTemplate = fmt.Errorf("Unexpected rsyslog template format")
+	errTime     = fmt.Errorf("Unexpected rsyslog time format")
 	errLevel    = fmt.Errorf("Unexpected rsyslog level format")
 	errLength   = fmt.Errorf("Unexpected rsyslog message length")
 )
@@ -17,19 +18,25 @@ var (
 func parseLine(raw []byte, promOnly bool) (*LogLine, error) {
 	var err error
 	ll := &LogLine{
-		Raw:       raw,
-		Timestamp: time.Now(),
+		Raw: raw,
 	}
 
-	if len(ll.Raw) < 16 {
+	if len(ll.Raw) < 46 {
 		return nil, errLength
 	}
 
-	if ll.Severity, err = getSeverity(ll.Raw[0]); err != nil {
+	if !promOnly {
+		ll.Timestamp, err = time.Parse((time.RFC3339), string(ll.Raw[:32]))
+		if err != nil {
+			return nil, errTime
+		}
+	}
+
+	if ll.Severity, err = getSeverity(ll.Raw[33]); err != nil {
 		return nil, err
 	}
 
-	var curPos, endPos = 2, 2
+	var curPos, endPos = 35, 35
 	endPos = bytes.IndexRune(ll.Raw[curPos:], seperator)
 	if endPos == -1 {
 
@@ -51,11 +58,9 @@ func parseLine(raw []byte, promOnly bool) (*LogLine, error) {
 		return nil, errTemplate
 	}
 
-	if promOnly {
-		return ll, nil
+	if !promOnly {
+		ll.Msg = string(ll.Raw[ll.MsgPos:])
 	}
-
-	ll.Msg = string(ll.Raw[ll.MsgPos:])
 
 	return ll, nil
 }

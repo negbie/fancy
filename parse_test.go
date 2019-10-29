@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var raw = []byte("6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}\n")
+var raw = []byte("2019-10-29T16:21:22.230666+01:00 6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}\n")
 
 type TestCase struct {
 	input []byte
@@ -19,22 +19,22 @@ type TestCase struct {
 func Test_parseLine(t *testing.T) {
 	cases := []TestCase{
 		TestCase{
-			input: []byte("6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
+			input: []byte("2019-10-29T16:21:22.230666+01:00 6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
 			want:  "6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}",
 			err:   nil,
 		},
 		TestCase{
-			input: []byte("6 pad fancy"),
+			input: []byte("2019-10-29T16:21:22.230666+01:00 6 pad fancy"),
 			want:  "",
 			err:   errLength,
 		},
 		TestCase{
-			input: []byte("9 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
+			input: []byte("2019-10-29T16:21:22.230666+01:00 9 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
 			want:  "",
 			err:   errLevel,
 		},
 		TestCase{
-			input: []byte("6padfancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
+			input: []byte("2019-10-29T16:21:22.230666+01:00 6padfancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
 			want:  "",
 			err:   errTemplate,
 		},

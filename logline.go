@@ -24,7 +24,7 @@ func (l *LogLine) String() string {
 
 func (l *LogLine) Valid() bool {
 	prefix := []byte(setSeverity(l.Severity) + " " + l.Hostname + " " + l.Program + " ")
-	return bytes.HasPrefix(l.Raw, prefix)
+	return bytes.HasPrefix(l.Raw[33:], prefix)
 }
 
 func setSeverity(in string) (out string) {
