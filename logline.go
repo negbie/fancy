@@ -6,6 +6,7 @@ import (
 )
 
 type LogLine struct {
+	StaticTag string
 	Timestamp time.Time
 	Severity  string
 	Hostname  string

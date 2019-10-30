@@ -101,6 +101,9 @@ func (l *Loki) Run() {
 			l.entry.labels["level"] = model.LabelValue(ll.Severity)
 			l.entry.labels["hostname"] = model.LabelValue(ll.Hostname)
 			l.entry.labels["program"] = model.LabelValue(ll.Program)
+			if len(ll.StaticTag) > 0 && ll.StaticTag != " " {
+				l.entry.labels["static_tag"] = model.LabelValue(ll.StaticTag)
+			}
 			l.entry.Entry.Line = ll.Msg
 
 			if batchSize+len(l.entry.Line) > l.batchSize {

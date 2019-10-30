@@ -23,15 +23,15 @@ const scanSize = 16
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
 	var (
-		cmd           = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
-		lokiURL       = fs.String("loki-url", "http://localhost:3100", "Loki Server URL")
-		lokiChanSize  = fs.Int("loki-chan-size", 10000, "Loki buffered channel capacity")
-		lokiBatchSize = fs.Int("loki-batch-size", 100*1024, "Loki will batch these bytes before sending them")
-		lokiBatchWait = fs.Int("loki-batch-wait", 4, "Loki will send logs after these seconds")
-		promOnly      = fs.Bool("prom-only", false, "Only metrics for Prometheus will be exposed")
-		promAddr      = fs.String("prom-addr", ":9090", "Prometheus scrape endpoint address")
-		promTag       = fs.String("prom-tag", "", "Will be used as a static label for the fancy_input_scan_total metric")
-		promTagFilter = fs.String("prom-tag-filter", "", "Use prom-tag only when msg contains this string")
+		cmd             = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
+		lokiURL         = fs.String("loki-url", "http://localhost:3100", "Loki Server URL")
+		lokiChanSize    = fs.Int("loki-chan-size", 10000, "Loki buffered channel capacity")
+		lokiBatchSize   = fs.Int("loki-batch-size", 100*1024, "Loki will batch these bytes before sending them")
+		lokiBatchWait   = fs.Int("loki-batch-wait", 4, "Loki will send logs after these seconds")
+		promOnly        = fs.Bool("prom-only", false, "Only metrics for Prometheus will be exposed")
+		promAddr        = fs.String("prom-addr", ":9090", "Prometheus scrape endpoint address")
+		staticTag       = fs.String("static-tag", "", "Will be used as a static label value with the name static_tag")
+		staticTagFilter = fs.String("static-tag-filter", "", "Set static-tag only when msg contains this string")
 	)
 	fs.Parse(os.Args[1:])
 
@@ -39,11 +39,11 @@ func main() {
 	defer fmt.Fprintf(os.Stderr, "%v end fancy with flags %s\n", t, os.Args[1:])
 
 	input := &Input{
-		cmd:           strings.Fields(*cmd),
-		promOnly:      *promOnly,
-		promTag:       *promTag,
-		promTagFilter: []byte(*promTagFilter),
-		scanChan:      make(chan [scanSize][]byte, 1000),
+		cmd:             strings.Fields(*cmd),
+		promOnly:        *promOnly,
+		staticTag:       *staticTag,
+		staticTagFilter: []byte(*staticTagFilter),
+		scanChan:        make(chan [scanSize][]byte, 1000),
 	}
 
 	if *promOnly {
@@ -77,7 +77,7 @@ var (
 	logScanNumber = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fancy_input_scan_total",
 		Help: "Total number of logs received from rsyslog fancy template"},
-		[]string{"hostname", "program", "level", "tag"})
+		[]string{"hostname", "program", "level", "static_tag"})
 	logScanSize = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fancy_input_raw_bytes_total",
 		Help: "Total number of bytes received from rsyslog fancy template"},
@@ -85,14 +85,14 @@ var (
 )
 
 type Input struct {
-	cmd           []string
-	cache         Cache
-	useLoki       bool
-	scanChan      chan [scanSize][]byte
-	lineChan      chan *LogLine
-	promOnly      bool
-	promTag       string
-	promTagFilter []byte
+	cmd             []string
+	cache           Cache
+	useLoki         bool
+	scanChan        chan [scanSize][]byte
+	lineChan        chan *LogLine
+	promOnly        bool
+	staticTag       string
+	staticTagFilter []byte
 }
 
 type Cache struct {
@@ -130,7 +130,7 @@ func (in *Input) scan(stderr io.Writer, stdin io.Reader) {
 
 func (in *Input) process() {
 	t := time.Now()
-	promTag := in.promTag
+	staticTag := in.staticTag
 	for s := range in.scanChan {
 		for i := 0; i < len(s); i++ {
 			ll, err := parseLine(s[i], in.promOnly)
@@ -139,16 +139,18 @@ func (in *Input) process() {
 				continue
 			}
 
-			if in.promOnly {
-				if len(in.promTagFilter) > 0 {
-					promTag = ""
-					if bytes.Contains(ll.Raw[ll.MsgPos:], in.promTagFilter) {
-						promTag = in.promTag
-					}
+			if len(in.staticTagFilter) > 0 {
+				staticTag = ""
+				if bytes.Contains(ll.Raw[ll.MsgPos:], in.staticTagFilter) {
+					staticTag = in.staticTag
 				}
+			}
 
+			ll.StaticTag = staticTag
+
+			if in.promOnly {
 				rawSize := float64(len(ll.Raw))
-				logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, promTag).Inc()
+				logScanNumber.WithLabelValues(ll.Hostname, ll.Program, ll.Severity, staticTag).Inc()
 				logScanSize.WithLabelValues(ll.Hostname, ll.Program).Add(rawSize)
 				continue
 			}
