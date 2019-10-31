@@ -52,14 +52,17 @@ func main() {
 			err := http.ListenAndServe(*promAddr, nil)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", t, err)
+				os.Exit(1)
 			}
 		}()
 	} else if len(*lokiURL) > 3 {
 		input.useLoki = true
 		input.lineChan = make(chan *LogLine, *lokiChanSize)
+		defer close(input.lineChan)
 		l, err := NewLoki(input.lineChan, *lokiURL, *lokiBatchSize, *lokiBatchWait)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v ERROR: %v\n", t, err)
+			os.Exit(1)
 		}
 		go l.Run()
 	}
@@ -70,7 +73,6 @@ func main() {
 	}
 
 	input.scan(os.Stderr, os.Stdin)
-	os.Exit(0)
 }
 
 var (
