@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -60,6 +61,7 @@ func parseLine(raw []byte, promOnly bool) (*LogLine, error) {
 
 	if !promOnly {
 		ll.Msg = string(ll.Raw[ll.MsgPos:])
+		ll.Msg = strings.ToValidUTF8(ll.Msg, "")
 	}
 
 	return ll, nil
