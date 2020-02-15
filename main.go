@@ -17,8 +17,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const version = "1.6"
-const scanSize = 16
+const version = "1.7"
+const scanSize = 24
 
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
@@ -26,7 +26,7 @@ func main() {
 		cmd             = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
 		lokiURL         = fs.String("loki-url", "http://localhost:3100", "Loki Server URL")
 		lokiChanSize    = fs.Int("loki-chan-size", 10000, "Loki buffered channel capacity")
-		lokiBatchSize   = fs.Int("loki-batch-size", 100*1024, "Loki will batch these bytes before sending them")
+		lokiBatchSize   = fs.Int("loki-batch-size", 1024*1024, "Loki will batch these bytes before sending them")
 		lokiBatchWait   = fs.Int("loki-batch-wait", 4, "Loki will send logs after these seconds")
 		promOnly        = fs.Bool("prom-only", false, "Only metrics for Prometheus will be exposed")
 		promAddr        = fs.String("prom-addr", ":9090", "Prometheus scrape endpoint address")

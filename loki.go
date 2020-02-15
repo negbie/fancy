@@ -22,6 +22,7 @@ import (
 const (
 	contentType  = "application/x-protobuf"
 	postPath     = "/api/prom/push"
+	postPathOne  = "/loki/api/v1/push"
 	jobName      = model.LabelValue("fancy")
 	maxErrMsgLen = 1024
 )
@@ -57,6 +58,7 @@ func NewLoki(lineChan chan *LogLine, URL string, batchSize, batchWait int) (*Lok
 		u.RawQuery = q.Encode()
 		l.lokiURL = u.String()
 	}
+	l.lokiURL = strings.Replace(l.lokiURL, postPath, postPathOne, -1)
 	return l, nil
 }
 
