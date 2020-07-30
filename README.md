@@ -33,10 +33,10 @@ Usage of fancy:
 ```
 ## Setup
 
-1. Download **fancy** from [releases](https://github.com/negbie/fancy/releases) or compile it from sources
-2. Make **fancy** executable. chmod +x fancy
-3. Move **fancy** to /opt. mv fancy /opt/
-4. Edit and paste following under /etc/rsyslog.conf. vim /etc/rsyslog.conf
+1. Download **fancy** from [releases](https://github.com/negbie/fancy/releases) or compile it from sources (`go build .`)
+2. Make **fancy** executable using `chmod +x fancy`.
+3. Move **fancy** to /opt with `mv fancy /opt/`.
+4. Edit rsyslog config with `vim /etc/rsyslog.conf`.
 
 ```bash
     module(load="omprog")
@@ -54,9 +54,6 @@ Usage of fancy:
         binary="/opt/fancy --environment dev --service example_service --loki-url https://your_endpoint/api/prom/push"
         )
 ```
-5. Make sure you have set the right Loki URL
-6. Restart `rsyslog`. systemctl restart rsyslog
-7. Check logs under /var/log/syslog and /var/log/fancy.log
-8. Check [example](https://github.com/negbie/fancy/tree/master/example) and build a fancy dashboard! Uh fancy :)
-
-![fancy_dashboard](https://user-images.githubusercontent.com/20154956/67338148-cab70600-f528-11e9-97c3-5782e4714193.png)
+5. Make sure you have set the right Loki URL.
+6. Restart `rsyslog` using `systemctl restart rsyslog`.
+7. Profit.
