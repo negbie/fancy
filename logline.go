@@ -6,14 +6,16 @@ import (
 )
 
 type LogLine struct {
-	StaticTag string
-	Timestamp time.Time
-	Severity  string
-	Hostname  string
-	Program   string
-	MsgPos    int
-	Msg       string
-	Raw       []byte
+	StaticTag   string
+	Timestamp   time.Time
+	Severity    string
+	Hostname    string
+	Program     string
+	Environment string
+	Service     string
+	MsgPos      int
+	Msg         string
+	Raw         []byte
 }
 
 func (l *LogLine) String() string {

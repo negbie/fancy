@@ -32,6 +32,8 @@ func main() {
 		promAddr        = fs.String("prom-addr", ":9090", "Prometheus scrape endpoint address")
 		staticTag       = fs.String("static-tag", "", "Will be used as a static label value with the name static_tag")
 		staticTagFilter = fs.String("static-tag-filter", "", "Set static-tag only when msg contains this string")
+		environment     = fs.String("environment", "", "Set an environment tag")
+		service         = fs.String("service", "", "Set a service tag")
 	)
 	fs.Parse(os.Args[1:])
 
@@ -44,6 +46,8 @@ func main() {
 		staticTag:       *staticTag,
 		staticTagFilter: []byte(*staticTagFilter),
 		scanChan:        make(chan [scanSize][]byte, 1000),
+		Environment:     *environment,
+		Service:         *service,
 	}
 
 	if *promOnly {
@@ -95,6 +99,8 @@ type Input struct {
 	promOnly        bool
 	staticTag       string
 	staticTagFilter []byte
+	Environment     string
+	Service         string
 }
 
 type Cache struct {
@@ -148,6 +154,8 @@ func (in *Input) process() {
 				}
 			}
 
+			ll.Environment = in.Environment
+			ll.Service = in.Service
 			ll.StaticTag = staticTag
 
 			if in.promOnly {
