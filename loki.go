@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/golang/snappy"
 	"github.com/negbie/fancy/logproto"
 	"github.com/prometheus/common/model"
@@ -29,7 +28,7 @@ const (
 
 type entry struct {
 	labels model.LabelSet
-	*logproto.Entry
+	logproto.Entry
 }
 
 type Loki struct {
@@ -92,13 +91,7 @@ func (l *Loki) Run() {
 			}
 			lastPktTime = curPktTime
 
-			tsNano := curPktTime.UnixNano()
-			ts := &timestamp.Timestamp{
-				Seconds: tsNano / int64(time.Second),
-				Nanos:   int32(tsNano % int64(time.Second)),
-			}
-
-			l.entry = entry{model.LabelSet{}, &logproto.Entry{Timestamp: ts}}
+			l.entry = entry{model.LabelSet{}, logproto.Entry{Timestamp: curPktTime}}
 			l.entry.labels["job"] = jobName
 			l.entry.labels["level"] = model.LabelValue(ll.Severity)
 			l.entry.labels["hostname"] = model.LabelValue(ll.Hostname)
