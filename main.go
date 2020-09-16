@@ -17,11 +17,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const version = "1.8"
+const version = "1.9"
 const scanSize = 24
 
 func main() {
 	fs := flag.NewFlagSet("fancy", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Use fancy %s like: %s [option]\n", version, os.Args[0])
+		fs.PrintDefaults()
+	}
+
 	var (
 		cmd             = fs.String("cmd", "", "Send input msg to external command and use it's output as new msg")
 		lokiURL         = fs.String("loki-url", "http://localhost:3100", "Loki Server URL")

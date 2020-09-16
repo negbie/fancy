@@ -10,10 +10,9 @@ import (
 const seperator = ' '
 
 var (
-	errTemplate = fmt.Errorf("Unexpected rsyslog template format")
-	errTime     = fmt.Errorf("Unexpected rsyslog time format")
-	errLevel    = fmt.Errorf("Unexpected rsyslog level format")
-	errLength   = fmt.Errorf("Unexpected rsyslog message length")
+	errTime   = fmt.Errorf("Unexpected rsyslog time format")
+	errLevel  = fmt.Errorf("Unexpected rsyslog level format")
+	errLength = fmt.Errorf("Unexpected rsyslog message length")
 )
 
 func parseLine(raw []byte, promOnly bool) (*LogLine, error) {
@@ -48,7 +47,7 @@ func parseLine(raw []byte, promOnly bool) (*LogLine, error) {
 
 	endPos = bytes.IndexRune(ll.Raw[curPos:], seperator)
 	if endPos == -1 {
-		return nil, errTemplate
+		return nil, fmt.Errorf("Unexpected rsyslog template format in %s", raw)
 	}
 	endPos += curPos
 	ll.Program = string(ll.Raw[curPos:endPos])
@@ -56,7 +55,7 @@ func parseLine(raw []byte, promOnly bool) (*LogLine, error) {
 	ll.MsgPos = curPos
 
 	if !ll.Valid() {
-		return nil, errTemplate
+		return nil, fmt.Errorf("Invalid rsyslog template format in %s", raw)
 	}
 
 	if !promOnly {

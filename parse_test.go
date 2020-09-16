@@ -18,32 +18,27 @@ type TestCase struct {
 
 func Test_parseLine(t *testing.T) {
 	cases := []TestCase{
-		TestCase{
+		{
 			input: []byte("2019-10-29T16:21:22.230666+01:00 6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
 			want:  "6 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}",
 			err:   nil,
 		},
-		TestCase{
+		{
 			input: []byte("2019-10-29T16:21:22.230666+01:00 6 pad fancy"),
 			want:  "",
 			err:   errLength,
 		},
-		TestCase{
+		{
 			input: []byte("2019-10-29T16:21:22.230666+01:00 9 pad fancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
 			want:  "",
 			err:   errLevel,
-		},
-		TestCase{
-			input: []byte("2019-10-29T16:21:22.230666+01:00 6padfancy {\"key1\":\"val1\", \"key2\":\"val2\"}"),
-			want:  "",
-			err:   errTemplate,
 		},
 	}
 
 	for _, c := range cases {
 		got, err := parseLine(c.input, false)
 		if err != c.err || got.String() != c.want {
-			t.Errorf("got %q,%v but want %q,%v", got.String(), err, c.want, c.err)
+			t.Errorf("\nrecv %q,%s\nwant %q,%s\n", got.String(), err, c.want, c.err)
 		}
 	}
 }
